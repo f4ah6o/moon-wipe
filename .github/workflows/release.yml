@@ -143,16 +143,16 @@ jobs:
           test "$(find release -type f | wc -l)" -eq 3
           ls -l release
           git fetch origin --tags --quiet
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "release $TAG already published"
+            exit 0
+          fi
           if git show-ref --verify --quiet "refs/tags/$TAG"; then
             tagged="$(git rev-list -n 1 "refs/tags/$TAG")"
             if [ "$tagged" != "$(git rev-parse HEAD)" ]; then
               echo "tag $TAG points at $tagged, not at $GITHUB_SHA" >&2
               exit 1
             fi
-          fi
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "release $TAG already published"
-            exit 0
           fi
           if git show-ref --verify --quiet "refs/tags/$TAG"; then
             gh release create "$TAG" release/* --verify-tag --generate-notes --title "$TAG"
