@@ -1,4 +1,5 @@
 import {
   "f4ah6o/moon-wipe" @wipe,
 }
+
 pkgtype(kind: "executable")
