@@ -8,6 +8,26 @@ it only when you ask.
 
 ## Install
 
+### moon-binstall
+
+```bash
+moon binstall f4ah6o/moon-wipe
+```
+
+Prebuilt binaries are published to GitHub Releases for `linux-x86_64`,
+`linux-aarch64` and `darwin-aarch64`. Linux binaries need glibc 2.34 or
+newer; `moon-binstall.json` declares that floor, so an older host stops with
+a build-from-source hint instead of a loader error.
+
+The same assets are reachable through the Mooncakes coordinate once the
+module is published there:
+
+```bash
+moon binstall f4ah6o/moon-wipe/cmd/moon-wipe
+```
+
+### From source
+
 ```bash
 moon install --path ./cmd/moon-wipe
 # => ~/.moon/bin/moon-wipe
@@ -121,3 +141,13 @@ moon check
 moon test
 moon fmt
 ```
+
+### Releasing
+
+Bump `version` in `moon.mod` and push to `main`. The release workflow reads
+the version with `scripts/version.mbtx`, compares it against the previous
+`moon.mod`, and only builds when the version actually moved. It then tags
+`v<version>` and attaches `moon-wipe-<target>` for each target.
+
+Pushing a `v<version>` tag by hand works too, as long as the tag matches
+`moon.mod`; a mismatch fails the run before anything is built.
