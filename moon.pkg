@@ -1,7 +1,9 @@
 import {
-  "moonbitlang/async",
   "moonbitlang/async/fs",
-  "moonbitlang/core/env",
-  "moonbitlang/core/string",
   "moonbitlang/core/debug",
+  "moonbitlang/core/string",
 }
+
+import {
+  "moonbitlang/async",
+} for "test"

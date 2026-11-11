@@ -25,4 +25,3 @@ pub const HELP : String =
   #|      --json              Emit machine-readable JSON
   #|  -h, --help              Print this help
   #|  -V, --version           Print the version
-  #|

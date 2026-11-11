@@ -1,5 +1,7 @@
 import {
   "f4ah6o/moon-wipe" @wipe,
+  "moonbitlang/async",
+  "moonbitlang/core/env",
 }
 
 pkgtype(kind: "executable")
