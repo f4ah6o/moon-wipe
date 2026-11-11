@@ -1,10 +1,4 @@
 ///|
-/// A command line that could not be understood.
-pub(all) suberror CliError {
-  CliError(String)
-}
-
-///|
 /// What the command line asked for.
 pub(all) enum Command {
   Run(Options)

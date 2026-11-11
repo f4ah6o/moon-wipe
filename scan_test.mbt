@@ -161,3 +161,41 @@ async test "a missing root is reported as an error" {
     _ => fail("expected the scan to fail")
   }
 }
+
+///|
+async test "cache measurement skips directories that do not exist" {
+  let root = @fs.tmpdir(prefix="moon-wipe-cache-")
+  defer @fs.rmdir(root, recursive=true, allow_missing=true)
+  let dep = @moon-wipe.join(root, "cache")
+  let registry = @moon-wipe.join(root, "registry")
+  @fs.mkdir(dep, recursive=true)
+  @fs.mkdir(registry, recursive=true)
+  @fs.write_file(@moon-wipe.join(dep, "a"), Bytes::make(100, b'x'))
+  @fs.write_file(@moon-wipe.join(registry, "b"), Bytes::make(200, b'x'))
+  let missing = @moon-wipe.join(root, "absent")
+  let result = @moon-wipe.measure_caches(
+    [dep, registry, missing],
+    root,
+    @moon-wipe.Options::new(),
+  )
+  inspect(result.root, content="\{root}")
+  inspect(result.entries.length(), content="2")
+  inspect(result.entries[0].size, content="100")
+  inspect(result.entries[1].size, content="200")
+}
+
+///|
+async test "cache measurement honours min-size and ignore" {
+  let root = @fs.tmpdir(prefix="moon-wipe-cache-")
+  defer @fs.rmdir(root, recursive=true, allow_missing=true)
+  let dep = @moon-wipe.join(root, "cache")
+  let registry = @moon-wipe.join(root, "registry")
+  @fs.mkdir(dep, recursive=true)
+  @fs.mkdir(registry, recursive=true)
+  @fs.write_file(@moon-wipe.join(dep, "a"), Bytes::make(100, b'x'))
+  @fs.write_file(@moon-wipe.join(registry, "b"), Bytes::make(200, b'x'))
+  let options = { ..@moon-wipe.Options::new(), min_size: 150L, ignores: [dep], }
+  let result = @moon-wipe.measure_caches([dep, registry], root, options)
+  inspect(result.entries.length(), content="1")
+  inspect(result.entries[0].path, content="\{registry}")
+}

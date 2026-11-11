@@ -9,13 +9,25 @@ pub(all) struct ScanResult {
 }
 
 ///|
-/// Find every directory under `options.root` that matches the target.
+/// Find every directory that matches the target.
+///
+/// `Moon`, `Mooncakes`, and `All` walk `options.root`. `Cache` looks at the
+/// global caches instead, which live outside any project.
+pub async fn scan(options : Options) -> ScanResult {
+  match options.target {
+    Cache => scan_cache(options)
+    _ => scan_tree(options)
+  }
+}
+
+///|
+/// Walk `options.root` looking for the target's directories.
 ///
 /// The walk prunes at every directory whose name matches a rule, whether or
 /// not the marker is present. A `_build` directory contains a copy of
 /// `.mooncakes`, so descending past a match would report the same dependency
 /// tree once per build profile.
-pub async fn scan(options : Options) -> ScanResult {
+async fn scan_tree(options : Options) -> ScanResult {
   let root = @fs.realpath(options.root)
   let rules = options.target.rules()
   let found : Array[String] = []
@@ -62,6 +74,95 @@ pub async fn scan(options : Options) -> ScanResult {
     })
   }
   { root, entries, }
+}
+
+///|
+/// Measure the global caches, which live outside any project.
+async fn scan_cache(options : Options) -> ScanResult {
+  measure_caches(cache_dirs(), moon_home(), options)
+}
+
+///|
+/// Measure the given cache directories, skipping the ones that do not exist.
+pub async fn measure_caches(
+  dirs : Array[String],
+  root : String,
+  options : Options,
+) -> ScanResult {
+  let ignores : Array[String] = []
+  for ignore in options.ignores {
+    ignores.push(resolve_path(root, ignore))
+  }
+  let entries : Array[Entry] = []
+  for path in dirs {
+    guard @fs.exists(path) else { continue }
+    let (size, files) = dir_size(path)
+    guard size >= options.min_size else { continue }
+    entries.push({
+      path,
+      size,
+      files,
+      ignored: is_ignored(path, ignores),
+      error: None,
+    })
+  }
+  { root, entries, }
+}
+
+///|
+/// The MoonBit home directory, honouring `MOON_HOME` when set.
+fn moon_home() -> String raise ScanError {
+  if @env.get_env_var("MOON_HOME") is Some(home) {
+    return strip_trailing_slash(home)
+  }
+  guard @env.get_env_var("HOME") is Some(home) else {
+    raise ScanError(
+      "cannot locate the MoonBit home: neither MOON_HOME nor HOME is set",
+    )
+  }
+  join(home, ".moon")
+}
+
+///|
+/// The global cache directories, honouring the per-cache overrides.
+fn cache_dirs() -> Array[String] raise ScanError {
+  cache_dirs_from(
+    moon_home(),
+    @env.get_env_var("MOON_DEP_CACHE"),
+    @env.get_env_var("MOON_REGISTRY_CACHE"),
+  )
+}
+
+///|
+/// Resolve the cache directories from an explicit home and overrides.
+///
+/// # Example
+/// ```mbt check
+/// test {
+///   debug_inspect(
+///     @moon-wipe.cache_dirs_from("/home/u/.moon", None, None),
+///     content="[\"/home/u/.moon/cache\", \"/home/u/.moon/registry\"]",
+///   )
+///   debug_inspect(
+///     @moon-wipe.cache_dirs_from("/home/u/.moon", Some("/d"), Some("/r")),
+///     content="[\"/d\", \"/r\"]",
+///   )
+/// }
+/// ```
+pub fn cache_dirs_from(
+  home : StringView,
+  dep_cache : String?,
+  registry_cache : String?,
+) -> Array[String] {
+  let dep = match dep_cache {
+    Some(path) => strip_trailing_slash(path)
+    None => join(home, "cache")
+  }
+  let registry = match registry_cache {
+    Some(path) => strip_trailing_slash(path)
+    None => join(home, "registry")
+  }
+  [dep, registry]
 }
 
 ///|
