@@ -15,7 +15,7 @@ test "report lists every entry and ends with a dry-run hint" {
   inspect(
     @moon-wipe.render_report(sample_result(), @moon-wipe.Options::new()),
     content=(
-      #|moon-wipe 0.1.0
+      #|moon-wipe 0.1.1
       #|Searching for MoonBit build directories in /code
       #|
       #|  /code/a/_build  1.5 KiB  12 files
@@ -33,7 +33,7 @@ test "report says nothing was found" {
   inspect(
     @moon-wipe.render_report(result, @moon-wipe.Options::new()),
     content=(
-      #|moon-wipe 0.1.0
+      #|moon-wipe 0.1.1
       #|Searching for MoonBit build directories in /code
       #|
       #|Nothing to wipe.
@@ -47,7 +47,7 @@ test "report switches the footer when wiping" {
   inspect(
     @moon-wipe.render_report(sample_result(), options),
     content=(
-      #|moon-wipe 0.1.0
+      #|moon-wipe 0.1.1
       #|Searching for MoonBit build directories in /code
       #|
       #|  /code/a/_build  1.5 KiB  12 files
@@ -70,7 +70,7 @@ test "report marks ignored entries" {
   inspect(
     @moon-wipe.render_report(result, @moon-wipe.Options::new()),
     content=(
-      #|moon-wipe 0.1.0
+      #|moon-wipe 0.1.1
       #|Searching for MoonBit build directories in /code
       #|
       #|  /code/a/_build  1.0 KiB  1 file  (ignored)

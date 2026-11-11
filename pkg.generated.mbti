@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub const VERSION : String = "0.1.0"
+pub const VERSION : String = "0.1.1"
 
 pub fn cache_dirs_from(StringView, String?, String?) -> Array[String]
 

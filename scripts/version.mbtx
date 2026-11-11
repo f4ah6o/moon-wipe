@@ -8,11 +8,17 @@ import {
 }
 
 ///|
-/// Read the `version = "..."` line out of a `moon.mod` file.
-async fn read_version(path : StringView) -> String {
+/// Read a whole file as UTF-8.
+async fn read_text(path : StringView) -> String {
   let file = @fs.open(path, mode=ReadOnly)
   defer file.close()
-  let text = @utf8.decode(file.read_exactly(file.size().to_int()))
+  @utf8.decode(file.read_exactly(file.size().to_int()))
+}
+
+///|
+/// Read the `version = "..."` line out of a `moon.mod` file.
+async fn read_version(path : StringView) -> String {
+  let text = read_text(path)
   for line in text.split("\n") {
     let trimmed = line.trim()
     if trimmed.has_prefix("version") {
@@ -54,9 +60,28 @@ fn compare_versions(left : StringView, right : StringView) -> Int32 raise {
 }
 
 ///|
+/// Path of the generated version constant.
+let version_source : String = "version_generated.mbt"
+
+///|
+/// Render the generated version constant for `version`.
+fn render_version_source(version : StringView) -> String {
+  let text =
+    $|///|
+    $|/// Version reported by `--version` and in the report header.
+    $|///
+    $|/// Generated from `moon.mod` by `moon run scripts/version.mbtx sync`.
+    $|pub const VERSION : String = "\{version}"
+    $|
+  text
+}
+
+///|
 async fn dispatch(args : Array[String]) -> Unit {
   guard args.length() >= 2 else {
-    fail("usage: version.mbtx read [FILE] | compare OLD NEW")
+    fail(
+      "usage: version.mbtx read [FILE] | compare OLD NEW | sync [FILE] | check [FILE]",
+    )
   }
   match args[1] {
     "read" => {
@@ -77,6 +102,25 @@ async fn dispatch(args : Array[String]) -> Unit {
           "same"
         },
       )
+    }
+    "sync" => {
+      let path = if args.length() >= 3 { args[2] } else { "moon.mod" }
+      let version = read_version(path)
+      @fs.write_file(version_source, render_version_source(version))
+      println("wrote \{version_source} (\{version})")
+    }
+    "check" => {
+      let path = if args.length() >= 3 { args[2] } else { "moon.mod" }
+      let version = read_version(path)
+      let expected = render_version_source(version)
+      let actual = read_text(version_source) catch { _ => "" }
+      if actual == expected {
+        println("\{version_source} matches \{version}")
+      } else {
+        fail(
+          "\{version_source} is stale; run `moon run scripts/version.mbtx sync`",
+        )
+      }
     }
     other => fail("unknown command: \{other}")
   }

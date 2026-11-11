@@ -20,6 +20,8 @@ jobs:
         run: moon update
       - name: Check
         run: moon check --target native --deny-warn
+      - name: Verify the generated version
+        run: moon run scripts/version.mbtx check
       - name: Test
         run: moon test --target native
       - name: Format

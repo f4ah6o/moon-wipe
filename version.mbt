@@ -1,8 +1,4 @@
 ///|
-/// Version reported by `--version` and in the report header.
-pub const VERSION : String = "0.1.0"
-
-///|
 /// Usage text printed by `--help`.
 pub fn help_text() -> String {
   let text =

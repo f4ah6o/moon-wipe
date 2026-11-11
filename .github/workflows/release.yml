@@ -22,6 +22,8 @@ jobs:
       - uses: hustcer/setup-moonbit@v1
       - name: Resolve dependencies
         run: moon update
+      - name: Verify the generated version
+        run: moon run scripts/version.mbtx check
       - name: Resolve release tag
         id: resolve
         shell: bash

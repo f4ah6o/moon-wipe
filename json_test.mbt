@@ -19,7 +19,7 @@ test "json report has the documented shape" {
     @moon-wipe.render_json(json_sample_result(), @moon-wipe.Options::new()),
     content=(
       #|{
-      #|  "version": "0.1.0",
+      #|  "version": "0.1.1",
       #|  "root": "/code",
       #|  "target": "moon",
       #|  "wiped": false,
@@ -60,7 +60,7 @@ test "json report records the target and the wipe flag" {
     @moon-wipe.render_json(json_sample_result(), options),
     content=(
       #|{
-      #|  "version": "0.1.0",
+      #|  "version": "0.1.1",
       #|  "root": "/code",
       #|  "target": "all",
       #|  "wiped": true,
@@ -97,7 +97,7 @@ test "json report of an empty result still carries the totals" {
     @moon-wipe.render_json(result, @moon-wipe.Options::new()),
     content=(
       #|{
-      #|  "version": "0.1.0",
+      #|  "version": "0.1.1",
       #|  "root": "/code",
       #|  "target": "moon",
       #|  "wiped": false,

@@ -144,10 +144,17 @@ moon fmt
 
 ### Releasing
 
-Bump `version` in `moon.mod` and push to `main`. The release workflow reads
-the version with `scripts/version.mbtx`, compares it against the previous
-`moon.mod`, and only builds when the version actually moved. It then tags
-`v<version>` and attaches `moon-wipe-<target>` for each target.
+`moon.mod` is the only place the version is written. `version_generated.mbt`
+is produced from it, and CI fails when the two disagree:
+
+```bash
+moon run scripts/version.mbtx sync
+```
+
+Bump `version` in `moon.mod`, run `sync`, and push to `main`. The release
+workflow reads the version with `scripts/version.mbtx`, compares it against
+the previous `moon.mod`, and only builds when the version actually moved. It
+then tags `v<version>` and attaches `moon-wipe-<target>` for each target.
 
 Pushing a `v<version>` tag by hand works too, as long as the tag matches
 `moon.mod`; a mismatch fails the run before anything is built.
