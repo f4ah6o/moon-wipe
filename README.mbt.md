@@ -151,3 +151,8 @@ the version with `scripts/version.mbtx`, compares it against the previous
 
 Pushing a `v<version>` tag by hand works too, as long as the tag matches
 `moon.mod`; a mismatch fails the run before anything is built.
+
+The same run publishes the module to Mooncakes once the release exists,
+skipping versions that are already there. It needs a
+`MOONCAKES_CREDENTIALS_JSON` secret holding the contents of
+`~/.moon/credentials.json`.

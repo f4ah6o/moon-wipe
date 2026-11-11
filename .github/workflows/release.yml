@@ -159,3 +159,54 @@ jobs:
           else
             gh release create "$TAG" release/* --target "$GITHUB_SHA" --generate-notes --title "$TAG"
           fi
+
+  mooncakes:
+    needs: [prepare, publish]
+    if: needs.prepare.outputs.tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: hustcer/setup-moonbit@v1
+      - name: Resolve dependencies
+        run: moon update
+      - name: Skip when the version is already published
+        id: check
+        shell: bash
+        env:
+          MODULE: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="$(moon run scripts/version.mbtx read 2>/dev/null)"
+          if moon view "$MODULE" --versions 2>/dev/null | grep -qx "$version"; then
+            echo "$MODULE $version is already on Mooncakes"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Write Mooncakes credentials
+        if: steps.check.outputs.publish == 'true'
+        shell: bash
+        env:
+          MOONCAKES_CREDENTIALS_JSON: ${{ secrets.MOONCAKES_CREDENTIALS_JSON }}
+        run: |
+          set -euo pipefail
+          if [ -z "$MOONCAKES_CREDENTIALS_JSON" ]; then
+            echo "::error::MOONCAKES_CREDENTIALS_JSON is not configured"
+            exit 1
+          fi
+          umask 077
+          mkdir -p "$HOME/.moon"
+          if printf '%s' "$MOONCAKES_CREDENTIALS_JSON" | jq -e . > /dev/null 2>&1; then
+            printf '%s' "$MOONCAKES_CREDENTIALS_JSON" > "$HOME/.moon/credentials.json"
+          else
+            jq -n --arg token "$MOONCAKES_CREDENTIALS_JSON" '{token: $token}' > "$HOME/.moon/credentials.json"
+          fi
+      - name: Publish to Mooncakes
+        if: steps.check.outputs.publish == 'true'
+        run: moon publish
+      - name: Remove credentials
+        if: always()
+        run: rm -f "$HOME/.moon/credentials.json"
