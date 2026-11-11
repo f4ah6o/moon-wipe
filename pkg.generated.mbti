@@ -28,6 +28,8 @@ pub async fn scan(Options) -> ScanResult
 
 pub fn strip_trailing_slash(StringView) -> String
 
+pub async fn wipe(Array[Entry]) -> Array[Entry]
+
 // Errors
 pub(all) suberror CliError {
   CliError(String)

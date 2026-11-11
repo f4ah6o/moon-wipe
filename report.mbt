@@ -141,12 +141,26 @@ pub fn render_report(result : ScanResult, options : Options) -> String {
   buffer.write_string(
     "\{group_digits(total_files.to_int64())} \{plural(total_files, "file", "files")}",
   )
+  let ignored = result.entries.filter(entry => entry.ignored).length()
+  if ignored > 0 {
+    buffer.write_string(" (\{ignored} ignored)")
+  }
   if options.wipe {
+    let wiped = result.entries.filter(entry => {
+      !entry.ignored && entry.error is None
+    })
+    let freed = wiped.fold(init=0L, (sum, entry) => sum + entry.size)
     buffer.write_string(
-      "\nWiped \{count} \{plural(count, "directory", "directories")}, freed \{format_bytes(total_size)}",
+      "\nWiped \{wiped.length()} \{plural(wiped.length(), "directory", "directories")}, freed \{format_bytes(freed)}",
     )
   } else {
     buffer.write_string("\nDry run: re-run with -w to delete")
+  }
+  let failed = result.entries.filter(entry => entry.error is Some(_)).length()
+  if failed > 0 {
+    buffer.write_string(
+      "\n\{failed} \{plural(failed, "directory", "directories")} could not be removed",
+    )
   }
   buffer.to_string()
 }

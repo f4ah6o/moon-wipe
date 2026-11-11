@@ -75,7 +75,7 @@ test "report marks ignored entries" {
       #|
       #|  /code/a/_build  1.0 KiB  1 file  (ignored)
       #|
-      #|Found 1 directory, 1.0 KiB, 1 file
+      #|Found 1 directory, 1.0 KiB, 1 file (1 ignored)
       #|Dry run: re-run with -w to delete
     ),
   )

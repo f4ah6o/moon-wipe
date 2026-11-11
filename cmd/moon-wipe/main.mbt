@@ -18,7 +18,12 @@ async fn main {
           @env.exit(1)
         }
       }
-      println(@wipe.render_report(result, options))
+      let entries = if options.wipe {
+        @wipe.wipe(result.entries)
+      } else {
+        result.entries
+      }
+      println(@wipe.render_report({ ..result, entries, }, options))
     }
   }
 }
