@@ -1,0 +1,12 @@
+{
+  "repository": "https://github.com/f4ah6o/moon-wipe",
+  "packages": [
+    {
+      "package": "cmd/moon-wipe",
+      "binary": "moon-wipe",
+      "pkg-url": "{repo}/releases/download/v{version}/{bin}-{target}",
+      "pkg-fmt": "bin",
+      "glibc-min": "2.34"
+    }
+  ]
+}

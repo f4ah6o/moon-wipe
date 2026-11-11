@@ -1,0 +1,103 @@
+///|
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+///|
+/// Read the `version = "..."` line out of a `moon.mod` file.
+async fn read_version(path : StringView) -> String {
+  let file = @fs.open(path, mode=ReadOnly)
+  defer file.close()
+  let text = @utf8.decode(file.read_exactly(file.size().to_int()))
+  for line in text.split("\n") {
+    let trimmed = line.trim()
+    if trimmed.has_prefix("version") {
+      if trimmed.split_once("=") is Some((_, value)) {
+        return value.trim().trim(chars="\"").to_owned()
+      }
+    }
+  }
+  fail("no version found in \{path}")
+}
+
+///|
+/// Split a `MAJOR.MINOR.PATCH` version into its three numbers.
+fn version_parts(version : StringView) -> Array[Int32] raise {
+  let parts : Array[Int32] = []
+  for piece in version.trim().split(".") {
+    parts.push(@string.parse_int(piece))
+  }
+  guard parts.length() == 3 else {
+    fail("expected MAJOR.MINOR.PATCH, got \{version}")
+  }
+  parts
+}
+
+///|
+/// Return -1, 0, or 1 as `left` is older than, equal to, or newer than `right`.
+fn compare_versions(left : StringView, right : StringView) -> Int32 raise {
+  let a = version_parts(left)
+  let b = version_parts(right)
+  for i in 0..<3 {
+    if a[i] < b[i] {
+      return -1
+    }
+    if a[i] > b[i] {
+      return 1
+    }
+  }
+  0
+}
+
+///|
+async fn dispatch(args : Array[String]) -> Unit {
+  guard args.length() >= 2 else {
+    fail("usage: version.mbtx read [FILE] | compare OLD NEW")
+  }
+  match args[1] {
+    "read" => {
+      let path = if args.length() >= 3 { args[2] } else { "moon.mod" }
+      println(read_version(path))
+    }
+    "compare" => {
+      guard args.length() >= 4 else {
+        fail("usage: version.mbtx compare OLD NEW")
+      }
+      let order = compare_versions(args[2], args[3])
+      println(
+        if order > 0 {
+          "newer"
+        } else if order < 0 {
+          "older"
+        } else {
+          "same"
+        },
+      )
+    }
+    other => fail("unknown command: \{other}")
+  }
+}
+
+///|
+/// Script entry point.
+///
+/// This toolchain does not let a script `main` raise, so errors are caught
+/// here and turned into an exit status.
+async fn main {
+  let args = @env.args()
+  let failed = try dispatch(args) catch {
+    error => {
+      println("version.mbtx: \{error}")
+      true
+    }
+  } noraise {
+    _ => false
+  }
+  if failed {
+    @env.exit(1)
+  }
+}
