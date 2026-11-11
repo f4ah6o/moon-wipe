@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: hustcer/setup-moonbit@v1
+      - name: Resolve dependencies
+        run: moon update
+      - name: Resolve release tag
+        id: resolve
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          version="$(moon run scripts/version.mbtx read 2>/dev/null)"
+          echo "moon.mod version: $version"
+          tag=""
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            tag="v$version"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+              echo "tag $GITHUB_REF_NAME does not match moon.mod version $version" >&2
+              exit 1
+            fi
+            tag="$GITHUB_REF_NAME"
+          elif [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            if [[ -z "$EVENT_BEFORE" || "$EVENT_BEFORE" =~ ^0+$ ]]; then
+              tag="v$version"
+            else
+              git show "$EVENT_BEFORE:moon.mod" > "$RUNNER_TEMP/previous-moon.mod"
+              previous="$(moon run scripts/version.mbtx read "$RUNNER_TEMP/previous-moon.mod" 2>/dev/null)"
+              order="$(moon run scripts/version.mbtx compare "$version" "$previous" 2>/dev/null)"
+              echo "previous version: $previous, current is $order"
+              if [[ "$order" == "newer" ]]; then
+                tag="v$version"
+              fi
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [[ -z "$tag" ]]; then
+            echo "moon.mod version unchanged; nothing to release"
+          else
+            echo "releasing $tag"
+          fi
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.tag != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux-aarch64
+          - os: macos-15
+            platform: darwin-aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - name: Resolve dependencies
+        run: moon update
+      - name: Build
+        run: moon build --target native --release
+      - name: Stage asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary=_build/native/release/build/cmd/moon-wipe/moon-wipe.exe
+          test -x "$binary"
+          mkdir -p release
+          cp -- "$binary" "release/moon-wipe-${{ matrix.platform }}"
+          chmod 755 "release/moon-wipe-${{ matrix.platform }}"
+          "./release/moon-wipe-${{ matrix.platform }}" --version
+      - name: Verify declared glibc-min
+        if: startsWith(matrix.platform, 'linux')
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="release/moon-wipe-${{ matrix.platform }}"
+          declared="$(jq -r '.packages[0]["glibc-min"]' moon-binstall.json)"
+          required="$(objdump -T "$asset" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -Vu | tail -1)"
+          echo "declared glibc-min: $declared"
+          echo "required glibc:     ${required:-none}"
+          if [ -n "$required" ]; then
+            highest="$(printf '%s\n%s\n' "$declared" "$required" | sort -V | tail -1)"
+            if [ "$highest" != "$declared" ]; then
+              echo "$asset requires glibc $required but moon-binstall.json declares $declared" >&2
+              exit 1
+            fi
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}
+          path: release/*
+          if-no-files-found: error
+
+  publish:
+    needs: [prepare, build]
+    if: needs.prepare.outputs.tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: release
+          merge-multiple: true
+      - name: Publish release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          test "$(find release -type f | wc -l)" -eq 3
+          ls -l release
+          git fetch origin --tags --quiet
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            tagged="$(git rev-list -n 1 "refs/tags/$TAG")"
+            if [ "$tagged" != "$(git rev-parse HEAD)" ]; then
+              echo "tag $TAG points at $tagged, not at $GITHUB_SHA" >&2
+              exit 1
+            fi
+          fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "release $TAG already published"
+            exit 0
+          fi
+          if git show-ref --verify --quiet "refs/tags/$TAG"; then
+            gh release create "$TAG" release/* --verify-tag --generate-notes --title "$TAG"
+          else
+            gh release create "$TAG" release/* --target "$GITHUB_SHA" --generate-notes --title "$TAG"
+          fi

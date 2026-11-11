@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hustcer/setup-moonbit@v1
+      - name: Resolve dependencies
+        run: moon update
+      - name: Check
+        run: moon check --target native --deny-warn
+      - name: Test
+        run: moon test --target native
+      - name: Format
+        run: |
+          moon fmt --check
+          moon fmt --check scripts/version.mbtx
+      - name: Build
+        run: moon build --target native --release
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary=_build/native/release/build/cmd/moon-wipe/moon-wipe.exe
+          test -x "$binary"
+          version="$(moon run scripts/version.mbtx read 2>/dev/null)"
+          test "$("$binary" --version)" = "moon-wipe $version"
+          "$binary" --help > /dev/null
+      - name: Verify declared glibc-min
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary=_build/native/release/build/cmd/moon-wipe/moon-wipe.exe
+          declared="$(jq -r '.packages[0]["glibc-min"]' moon-binstall.json)"
+          required="$(objdump -T "$binary" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -Vu | tail -1)"
+          echo "declared glibc-min: $declared"
+          echo "required glibc:     ${required:-none}"
+          if [ -n "$required" ]; then
+            highest="$(printf '%s\n%s\n' "$declared" "$required" | sort -V | tail -1)"
+            if [ "$highest" != "$declared" ]; then
+              echo "binary requires glibc $required but moon-binstall.json declares $declared" >&2
+              exit 1
+            fi
+          fi
