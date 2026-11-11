@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "f4ah6o/moon-wipe"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub(all) enum Target {
+  Moon
+  Mooncakes
+  All
+  Cache
+}
+
+// Type aliases
+
+// Traits
