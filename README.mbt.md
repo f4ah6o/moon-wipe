@@ -19,8 +19,8 @@ Prebuilt binaries are published to GitHub Releases for `linux-x86_64`,
 newer; `moon-binstall.json` declares that floor, so an older host stops with
 a build-from-source hint instead of a loader error.
 
-The same assets are reachable through the Mooncakes coordinate once the
-module is published there:
+The Mooncakes coordinate resolves the same assets through
+`moon-binstall.json`:
 
 ```bash
 moon binstall f4ah6o/moon-wipe/cmd/moon-wipe
