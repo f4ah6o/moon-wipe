@@ -177,8 +177,10 @@ test "older-than rejects a negative count" {
 
 ///|
 test "help text carries the version and every target" {
-  assert_true(@moon-wipe.HELP.has_prefix("moon-wipe \{@moon-wipe.VERSION}"))
+  assert_true(
+    @moon-wipe.help_text().has_prefix("moon-wipe \{@moon-wipe.VERSION}"),
+  )
   for target in ["moon", "mooncakes", "all", "cache"] {
-    assert_true(@moon-wipe.HELP.contains(target))
+    assert_true(@moon-wipe.help_text().contains(target))
   }
 }

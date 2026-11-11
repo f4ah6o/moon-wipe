@@ -42,3 +42,24 @@ pub extend Target with @debug.Debug::{to_repr}
 
 ///|
 pub extend Target with Eq::{not_equal, equal}
+
+///|
+/// The name accepted on the command line.
+///
+/// # Example
+/// ```mbt check
+/// test {
+///   inspect(@moon-wipe.Target::Moon.name(), content="moon")
+///   inspect(@moon-wipe.Target::Mooncakes.name(), content="mooncakes")
+///   inspect(@moon-wipe.Target::All.name(), content="all")
+///   inspect(@moon-wipe.Target::Cache.name(), content="cache")
+/// }
+/// ```
+pub fn Target::name(self : Target) -> String {
+  match self {
+    Moon => "moon"
+    Mooncakes => "mooncakes"
+    All => "all"
+    Cache => "cache"
+  }
+}

@@ -61,14 +61,16 @@ async fn scan_tree(options : Options) -> ScanResult {
   for ignore in options.ignores {
     ignores.push(resolve_path(root, ignore))
   }
+  let cutoff = age_cutoff(options)
   let entries : Array[Entry] = []
   for path in found {
-    let (size, files) = dir_size(path)
-    guard size >= options.min_size else { continue }
+    let stats = dir_stats(path)
+    guard stats.bytes >= options.min_size else { continue }
+    guard is_old_enough(stats, cutoff) else { continue }
     entries.push({
       path,
-      size,
-      files,
+      size: stats.bytes,
+      files: stats.files,
       ignored: is_ignored(path, ignores),
       error: None,
     })
@@ -93,15 +95,17 @@ pub async fn measure_caches(
   for ignore in options.ignores {
     ignores.push(resolve_path(root, ignore))
   }
+  let cutoff = age_cutoff(options)
   let entries : Array[Entry] = []
   for path in dirs {
     guard @fs.exists(path) else { continue }
-    let (size, files) = dir_size(path)
-    guard size >= options.min_size else { continue }
+    let stats = dir_stats(path)
+    guard stats.bytes >= options.min_size else { continue }
+    guard is_old_enough(stats, cutoff) else { continue }
     entries.push({
       path,
-      size,
-      files,
+      size: stats.bytes,
+      files: stats.files,
       ignored: is_ignored(path, ignores),
       error: None,
     })
@@ -202,3 +206,30 @@ fn find_rule(rules : Array[Rule], name : String) -> Rule? {
 
 ///|
 pub extend ScanResult with @debug.Debug::{to_repr}
+
+///|
+/// Seconds since the Unix epoch.
+///
+/// `@env.now()` is milliseconds and stays well below 2^63, so reinterpreting
+/// the bits as a signed integer is safe here.
+fn now_seconds() -> Int64 {
+  @env.now().reinterpret_as_int64() / 1000L
+}
+
+///|
+/// The oldest modification time an entry may have to still be reported.
+fn age_cutoff(options : Options) -> Int64? {
+  match options.older_than_days {
+    Some(days) => Some(now_seconds() - days.to_int64() * 86400L)
+    None => None
+  }
+}
+
+///|
+/// True when the entry is old enough to report, or when no age filter is set.
+fn is_old_enough(stats : DirStats, cutoff : Int64?) -> Bool {
+  match cutoff {
+    Some(limit) => stats.newest < limit
+    None => true
+  }
+}

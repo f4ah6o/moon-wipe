@@ -288,3 +288,40 @@ moon fmt
   フラグ名が変わるリスクがある。M4 で判断する。
 - `--older-than` の基準時刻。ディレクトリの `mtime` か、配下の最新ファイルの
   `mtime` か。cargo-sweep は後者。M5 で決める。
+
+---
+
+## 7. 実装結果（M0–M5 完了時点）
+
+計画からの差分と、未確定だった点の結論。
+
+| 項目 | 計画 | 実装 |
+|---|---|---|
+| `scan` の戻り値 | `Array[Entry]` | `ScanResult { root, entries }`。解決済みの root を報告に使うため |
+| 報告関数 | `Report::render` | `render_report` / `render_json`。`Report` 型を作る必要がなかった |
+| `wipe` の戻り値 | `Unit` | `Array[Entry]`。for ループ経由の構造体書き換えが配列に伝播しなかったため |
+| `cache` ターゲット | `moon clean` 経由か直接削除か | 直接計測・削除。dry-run とサイズ報告を揃えるため |
+| `--older-than` の基準 | ディレクトリか配下最新ファイルか | 配下最新ファイルの `mtime`（`DirStats.newest`） |
+| `HELP` | `pub const` | `help_text()` 関数。生成インターフェースが巨大な文字列で埋まるのを避ける |
+
+### 実装中に判明した落とし穴
+
+- `@fs.rmdir(..., allow_missing=true)` は存在しないパスでも例外を投げる。
+  削除前に `@fs.exists` で確認する必要がある。
+- `@fs.walk` は並列実行で、マッチしたディレクトリにも降下する。逐次自前実装が必要。
+- `#|` の複数行文字列は補間しない。`$|` を使う。
+- `unused_mut` は既定でエラー。`push` するだけの配列に `mut` は不要。
+- `String::ends_with` は `has_suffix` に、`UInt64::to_int64` は
+  `reinterpret_as_int64` に置き換えられている。
+- `pub(all)` 型に `#derive(Debug, Eq)` すると `implicit_impl_as_method` 警告が出る。
+  `pub extend T with Trait::{...}` を明示する必要がある。
+- `@fs` は native 専用。`supported_targets = "native"` を宣言しないと
+  `moon check --target all` が wasm/js で落ちる。
+
+### 検証済みの挙動
+
+- `_build` 内の `.mooncakes` は `mooncakes` ターゲットでも報告されない（枝刈り）
+- マーカーの無い `_build` / `.mooncakes` は無視される
+- `-w` は 3 ディレクトリを削除し、マーカーの無いデコイ 2 件を残した
+- `--older-than 30` は 2020 年のディレクトリだけを残した
+- `moon install --path ./cmd/moon-wipe` が `~/.moon/bin/moon-wipe` を生成する

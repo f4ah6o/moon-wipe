@@ -9,7 +9,7 @@ async fn main {
     }
   }
   match command {
-    @wipe.Command::Help => println(@wipe.HELP)
+    @wipe.Command::Help => println(@wipe.help_text())
     @wipe.Command::Version => println("moon-wipe \{@wipe.VERSION}")
     @wipe.Command::Run(options) => {
       let result = @wipe.scan(options) catch {
@@ -23,7 +23,13 @@ async fn main {
       } else {
         result.entries
       }
-      println(@wipe.render_report({ ..result, entries, }, options))
+      let updated = { ..result, entries, }
+      let text = if options.json {
+        @wipe.render_json(updated, options)
+      } else {
+        @wipe.render_report(updated, options)
+      }
+      println(text)
     }
   }
 }

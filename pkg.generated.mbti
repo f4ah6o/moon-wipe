@@ -6,17 +6,19 @@ import {
 }
 
 // Values
-pub const HELP : String = "moon-wipe 0.1.0\nRecursively find and optionally wipe MoonBit build directories.\n\nUsage: moon-wipe [TARGET] [OPTIONS]\n\nTargets:\n  moon         _build directories (default)\n  mooncakes    .mooncakes dependency sources\n  all          moon + mooncakes\n  cache        global caches under ~/.moon\n\nOptions:\n  -w, --wipe              Delete what was found (default is a dry run)\n  -i, --ignore <PATH>     Skip this path; repeatable\n      --root <PATH>       Start searching here (default: current directory)\n      --min-size <SIZE>   Only report directories at least this large (e.g. 100M)\n      --older-than <DAYS> Only report directories untouched for this many days\n      --json              Emit machine-readable JSON\n  -h, --help              Print this help\n  -V, --version           Print the version"
-
 pub const VERSION : String = "0.1.0"
 
 pub fn cache_dirs_from(StringView, String?, String?) -> Array[String]
 
 pub async fn dir_size(StringView) -> (Int64, Int32)
 
+pub async fn dir_stats(StringView) -> DirStats
+
 pub fn format_bytes(Int64) -> String
 
 pub fn group_digits(Int64) -> String
+
+pub fn help_text() -> String
 
 pub fn join(StringView, StringView) -> String
 
@@ -25,6 +27,8 @@ pub async fn measure_caches(Array[String], String, Options) -> ScanResult
 pub fn parse_args(ArrayView[String]) -> Command raise CliError
 
 pub fn parse_size(StringView) -> Int64 raise CliError
+
+pub fn render_json(ScanResult, Options) -> String
 
 pub fn render_report(ScanResult, Options) -> String
 
@@ -51,12 +55,20 @@ pub(all) enum Command {
 }
 
 #derive(@debug.Debug)
+pub(all) struct DirStats {
+  bytes : Int64
+  files : Int32
+  newest : Int64
+}
+pub fn DirStats::to_repr(Self) -> @debug.Repr
+
+#derive(@debug.Debug)
 pub(all) struct Entry {
   path : String
   size : Int64
   files : Int32
   ignored : Bool
-  mut error : String?
+  error : String?
 }
 pub fn Entry::new(String, Int64, Int32) -> Self
 pub fn Entry::to_repr(Self) -> @debug.Repr
@@ -96,6 +108,7 @@ pub(all) enum Target {
   Cache
 }
 pub fn Target::equal(Self, Self) -> Bool
+pub fn Target::name(Self) -> String
 pub fn Target::not_equal(Self, Self) -> Bool
 pub fn Target::parse(StringView) -> Self raise CliError
 pub fn Target::rules(Self) -> Array[Rule]

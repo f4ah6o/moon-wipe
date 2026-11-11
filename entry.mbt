@@ -8,7 +8,7 @@ pub(all) struct Entry {
   /// The path matched an `--ignore` entry, so `--wipe` leaves it alone.
   ignored : Bool
   /// Set when measuring or deleting the directory failed.
-  mut error : String?
+  error : String?
 }
 
 ///|
